@@ -65,8 +65,9 @@ static int i_num = 1;
 static int i_cnt = 0;
 
 
+static void start_timer();
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id);
-static void setup_and_start_timer(unsigned int milliseconds);
+static void setup_timer(unsigned int milliseconds);
 static int timer_probe(struct platform_device *pdev);
 static int timer_remove(struct platform_device *pdev);
 int timer_open(struct inode *pinode, struct file *pfile);
@@ -108,32 +109,27 @@ MODULE_DEVICE_TABLE(of, timer_of_match);
 
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)		
 {      
-	unsigned int data = 0;
+	unsigned int data0 = 0;
 
 	// Check Timer Counter Value
-	data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR_OFFSET);
-	printk(KERN_INFO "xilaxitimer_isr: Interrupt %d occurred !\n",i_cnt);
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
+
+	printk(KERN_INFO "xilaxitimer_isr: Interrupt has occurred !\n");
 
 	// Clear Interrupt
-	data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
-	iowrite32(data | XIL_AXI_TIMER_CSR_INT_OCCURED_MASK,
-			tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 | XIL_AXI_TIMER_CSR_INT_OCCURED_MASK,
+			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 
-	// Increment number of interrupts that have occured
-	i_cnt++;
-	// Disable Timer after i_num interrupts
-	if (i_cnt>=i_num)
-	{
-		printk(KERN_NOTICE "xilaxitimer_isr: All of the interrupts have occurred. Disabling timer\n");
-		data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
-		iowrite32(data & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK), tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
-		i_cnt = 0;
-	}
+	// Disable Timer
+		printk(KERN_NOTICE "xilaxitimer_isr: Finished! Disabling timer\n");
+		data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+		iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_ALL_MASK), tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 
 	return IRQ_HANDLED;
 }
 //***************************************************
-//HELPER FUNCTION THAT RESETS AND STARTS TIMER WITH PERIOD IN MILISECONDS
+//HELPER FUNCTION THAT SETS UP TIMER
 
 static void setup_timer(u64 milliseconds)
 {
@@ -180,6 +176,14 @@ static void setup_timer(u64 milliseconds)
 
 	printk(KERN_INFO "Timer is set up!\n");		
 
+}
+
+static void start_timer()
+{
+	unsigned int data0 = 0;
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 | XIL_AXI_TIMER_CSR_ENABLE_ALL_MASK,
+				tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);	
 }
 
 //***************************************************
