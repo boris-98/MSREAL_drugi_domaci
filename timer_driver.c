@@ -68,6 +68,7 @@ unsigned char startFlag = 0;
 
 
 static void start_timer(void);
+static void stop_timer(void);
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id);
 static void setup_timer(u64 milliseconds);
 static int timer_probe(struct platform_device *pdev);
@@ -193,6 +194,53 @@ static void start_timer()
 				tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	startFlag = 1;
 	printk(KERN_INFO "Timer has started!\n");	
+}
+
+static void stop_timer()
+{
+	unsigned int data0 = 0;
+	unsigned int data1 = 0;
+	unsigned int timer0_load = 0;
+	unsigned int timer1_load = 0;
+	
+	timer0_load = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
+	timer1_load = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET);
+	
+	//disabling
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+
+	//set initial values
+	iowrite32(timer1_load, tp->base_addr + XIL_AXI_TIMER_TLR1_OFFSET);
+	iowrite32(timer0_load, tp->base_addr + XIL_AXI_TIMER_TLR0_OFFSET);
+
+	//load initial values
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 | XIL_AXI_TIMER_CSR_LOAD_MASK,
+				tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	iowrite32(data1 | XIL_AXI_TIMER_CSR_LOAD_MASK,
+				tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+ 
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+
+	//setting up	
+	iowrite32(XIL_AXI_TIMER_CSR_ENABLE_INT_MASK | XIL_AXI_TIMER_CSR_CASC_MASK
+						    | XIL_AXI_TIMER_CSR_DOWN_COUNT_MASK,
+						tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	
+	startFlag = 0;
+	printk(KERN_INFO "Time has stopped!\n");
 }
 
 //***************************************************
@@ -344,6 +392,7 @@ ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length
 	char buff[BUFF_SIZE];
 	char command[BUFF_SIZE];
 	char start[] = "start";
+	char stop[] = "stop";
 	unsigned int days = 0;
 	unsigned int hours = 0;
 	unsigned int minutes = 0;
@@ -385,9 +434,9 @@ ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length
 		{
 			command[i] = buff[i];
 		}		
-		command[length] = '\0';		
+		command[length] = '\0';	
 
-		if(!strncmp(command, start, strlen(start)))
+		if(!strncmp(command, start, strlen(start)))  //iz nekog razloga nece strcmp
 		{
 			if(startFlag == 0)
 			{
@@ -397,6 +446,18 @@ ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length
 			else
 			{
 				printk(KERN_INFO "Timer is already started!\n");
+			}
+		}
+		else if(!strncmp(command, stop, strlen(stop)))
+		{
+			if(startFlag == 1)
+			{
+				printk(KERN_INFO "Stopping timmer\n");
+				stop_timer();
+			}
+			else
+			{
+				printk(KERN_INFO "Timer is already stopped!\n");
 			}
 		}
 		else
