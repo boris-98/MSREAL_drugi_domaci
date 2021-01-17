@@ -19,9 +19,9 @@
 #include <linux/interrupt.h> //irqreturn_t, request_irq
 
 // REGISTER CONSTANTS
-#define XIL_AXI_TIMER_TCSR_OFFSET	0x0		//timer0
-#define XIL_AXI_TIMER_TLR_OFFSET		0x4
-#define XIL_AXI_TIMER_TCR_OFFSET		0x8
+#define XIL_AXI_TIMER_TCSR0_OFFSET	0x0		//timer0
+#define XIL_AXI_TIMER_TLR0_OFFSET		0x4
+#define XIL_AXI_TIMER_TCR0_OFFSET		0x8
 #define XIL_AXI_TIMER_TCSR1_OFFSET	0x10		//timer1
 #define XIL_AXI_TIMER_TLR1_OFFSET		0x14
 #define XIL_AXI_TIMER_TCR1_OFFSET		0x18
@@ -61,13 +61,11 @@ static struct device *my_device;
 static struct cdev *my_cdev;
 static struct timer_info *tp = NULL;
 
-static int i_num = 1;
-static int i_cnt = 0;
 
 
-static void start_timer();
+static void start_timer(void);
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id);
-static void setup_timer(unsigned int milliseconds);
+static void setup_timer(u64 milliseconds);
 static int timer_probe(struct platform_device *pdev);
 static int timer_remove(struct platform_device *pdev);
 int timer_open(struct inode *pinode, struct file *pfile);
@@ -139,7 +137,6 @@ static void setup_timer(u64 milliseconds)
 	u64 timer_load;
 	unsigned int data0 = 0;
 	unsigned int data1 = 0;
-	u64 data = 0;
 	timer_load = milliseconds*100000;
 	timer0_load = (unsigned int)timer_load;
 	timer1_load = (unsigned int)(timer_load >> 32);
@@ -262,9 +259,9 @@ static int timer_remove(struct platform_device *pdev)
 {
 	// Disable timer
 	unsigned int data=0;
-	data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
+	data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	iowrite32(data & ~(XIL_AXI_TIMER_CSR_ENABLE_ALL_MASK),
-			tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
+			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	// Free resources taken in probe
 	free_irq(tp->irq_num, NULL);
 	iowrite32(0, tp->base_addr);
