@@ -149,29 +149,32 @@ static void setup_timer(u64 milliseconds)
 
 	// Disable timer/counter while configuration is in progress
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_ALL_MASK),
+	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	
 	// Set initial value in load registers
 	iowrite32(timer0_load, tp->base_addr + XIL_AXI_TIMER_TLR0_OFFSET);
 	iowrite32(timer1_load, tp->base_addr + XIL_AXI_TIMER_TLR1_OFFSET);
 
 	// Load initial value into counter from load registers
 
-	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);	
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data1 | XIL_AXI_TIMER_CSR_LOAD_MASK,
-			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 	iowrite32(data0 | XIL_AXI_TIMER_CSR_LOAD_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-
-
-	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
-	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);	
+	iowrite32(data1 | XIL_AXI_TIMER_CSR_LOAD_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+
+
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 
 	// Enable interrupts, cascade and downcount, rest should be zero
 	iowrite32(XIL_AXI_TIMER_CSR_ENABLE_INT_MASK | XIL_AXI_TIMER_CSR_CASC_MASK 
@@ -303,10 +306,10 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 	u64 time_seconds = 0;
 	u64 temp1 = 0;
 	u64 temp2 = 0;
-	u64 days = 1;
-	u64 hours = 1;
-	u64 minutes = 1;
-	u64 seconds = 1;	
+	u64 days = 0;
+	u64 hours = 0;
+	u64 minutes = 0;
+	u64 seconds = 0;	
 	unsigned int data0 = 0;
 	unsigned int data1 = 0;
 
@@ -328,7 +331,6 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 	len = scnprintf(buff, BUFF_SIZE, "%llu %llu %llu %llu %llu\n", time_seconds, days, hours, minutes, seconds);
 	ret = copy_to_user(buffer, buff, len);
 	
-	printk(KERN_INFO "time_seconds: %llu\n", time_seconds);
 	printk(KERN_INFO "Remaining time: %llu:%llu:%llu:%llu\n", days, hours, minutes, seconds);
 
 	if(ret)
